@@ -1,0 +1,10 @@
+<html>
+    <head>
+        <title>Auto commuter</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">        
+    </head>
+    <body>
+        <p>Authorize <a href="https://www.strava.com/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=read,activity:read_all,activity:write">here</a>.</p>
+    </body>
+</html>

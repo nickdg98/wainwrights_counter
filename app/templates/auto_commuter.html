@@ -1,0 +1,160 @@
+<html>
+    <head>
+        <title>Auto commuter</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+        <script>
+
+            function get_wainwrights() {
+                return fetch("/wainwrights", {
+                    method: "GET",
+                }).then(res => res.json())
+                .then(result => {
+                    var tables = document.getElementsByTagName("table")
+                    if (tables.length > 0) {tables[0].remove()}
+                    var table = document.createElement('table');
+                    table.setAttribute("id", "wainwrights-table");
+                    var tableBody = document.createElement('tbody');
+                    for (let i = 0; i<Object.keys(result).length; i++) {                       
+                        var row = document.createElement('tr');
+                        var cell_text = document.createElement('td');
+                        var txt = Object.keys(result)[i]
+                        cell_text.appendChild(document.createTextNode(txt));
+                        row.appendChild(cell_text);
+                        row.setAttribute("id", txt);
+                        row.setAttribute("data-climbed", "no");
+                        tableBody.appendChild(row);
+                    }
+                    table.appendChild(tableBody);
+                    document.body.appendChild(table);
+                })
+            }
+
+            function sortTable() {
+                var table, rows, switching, i, x, y, shouldSwitch;
+                table = document.getElementById("wainwrights-table");
+                switching = true;
+                /* Make a loop that will continue until
+                no switching has been done: */
+                while (switching) {
+                    // Start by saying: no switching is done:
+                    switching = false;
+                    rows = table.rows;
+                    /* Loop through all table rows (except the
+                    first, which contains table headers): */
+                    for (i = 0; i < (rows.length - 1); i++) {
+                        // Start by saying there should be no switching:
+                        shouldSwitch = false;
+                        /* Get the two elements you want to compare,
+                        one from current row and one from the next: */
+                        x = rows[i];
+                        y = rows[i + 1];
+                        // Check if the two rows should switch place:
+                        if (y.getAttribute("data-climbed") == "yes" && x.getAttribute("data-climbed") == "no") {
+                            // If so, mark as a switch and break the loop:
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                    if (shouldSwitch) {
+                        /* If a switch has been marked, make the switch
+                        and mark that a switch has been done: */
+                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                        switching = true;
+                    }
+                }
+            }
+            
+            function get_access_token() {
+                let data = {
+                    client_id: {{ client_id }},
+                    client_secret: '{{ client_secret }}',
+                    code: '{{ code }}',
+                    grant_type: "authorization_code"
+                };
+
+                return fetch("https://www.strava.com/api/v3/oauth/token", {
+                    method: "POST", 
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).then(res => {
+                    return res.json()
+                }).then(result => {
+                    return result.access_token
+                })
+            }
+
+            function get_bagged(token) {
+                return fetch("/get_bagged", {
+                    method: "GET",
+                    headers: {'Authorization': 'Bearer ' + token}
+                }).then(res => {
+                    return res.json()
+                })
+            }
+
+            function get_athlete(token) {
+                return fetch("/get_athlete", {
+                    method: "GET",
+                    headers: {'Authorization': 'Bearer ' + token}
+                }).then(res => {
+                    return res.json()
+                })
+            }
+
+            async function display_loading() {
+                document.getElementById("load").innerHTML = "Loading..."
+                while (1 < 2) {
+                    await new Promise(r => setTimeout(r, 500));
+                    document.getElementById("load").innerHTML = "Loading"
+                    await new Promise(r => setTimeout(r, 500));
+                    document.getElementById("load").innerHTML = "Loading."
+                    await new Promise(r => setTimeout(r, 500));
+                    document.getElementById("load").innerHTML = "Loading.."
+                    await new Promise(r => setTimeout(r, 500));
+                    document.getElementById("load").innerHTML = "Loading..."
+                }               
+            }
+
+            function display_failure(err) {
+                console.log(err.message)
+                document.getElementById("fail").innerHTML = "it failed!";
+                document.getElementById("load").style.visibility="hidden";
+            }
+
+            function display_bagged(data) {
+                document.getElementById("count").innerHTML = `${data.bagged.length}/214`
+                data.bagged.forEach(summit => {
+                    var summit_row = document.getElementById(summit)
+                    summit_row.style.color = "blue";
+                    summit_row.setAttribute("data-climbed", 'yes');
+                    document.getElementById("load").style.visibility="hidden";
+                });
+                sortTable()
+            }
+
+            requestIdleCallback(display_loading)
+            get_wainwrights()
+            get_access_token()
+            .then(token => {
+                var athlete = get_athlete(token)
+                get_bagged(token)
+                .then(data => {
+                    display_bagged(data)
+                })
+                .catch(err => display_failure(err))
+            })
+            .catch(err => display_failure(err))
+        </script>
+        
+    </head>
+    <body>
+        <p><a href="https://www.strava.com/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&scope=read,activity:read_all,activity:write">Click me to check bagged wainwrights</a>.</p>
+        <p id="count"></p>
+        <p id="load"></p>
+        <p id="fail"></p>
+    </body>
+</html>
